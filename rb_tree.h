@@ -1,6 +1,9 @@
 #ifndef _RB_TREE_H_
 #define _RB_TREE_H_
 
+const bool BLACK = false;
+const bool RED = true;
+
 template<typename Key, typename Value> class rb_tree
 {
     public:
@@ -21,10 +24,10 @@ template<typename Key, typename Value> class rb_tree
                 this->color = BLACK;
             }
 
-            private:
-            enum { BLACK = false, RED = true };
+            //private:
+            //enum { BLACK = false, RED = true };
 
-            private:
+            //private:
                 Key     key;
                 Value   value;
                 bool    color;
@@ -48,6 +51,7 @@ template<typename Key, typename Value> class rb_tree
 
         void del_node(Node* node);
         void del_fixup(Node* node);
+        void transplant(Node* u, Node* v);
 
         void insert_fixup(Node* node);
 
@@ -60,7 +64,7 @@ template<typename Key, typename Value> class rb_tree
 };
 
 template<typename Key, typename Value>
-void rb_tree<Key, Value>::insert(Key key, Value)
+void rb_tree<Key, Value>::insert(Key key, Value value)
 {
     rb_tree<Key, Value>::Node* node = new rb_tree<Key, Value>::Node(key, value);
     rb_tree<Key, Value>::Node* curr = root;
@@ -69,9 +73,9 @@ void rb_tree<Key, Value>::insert(Key key, Value)
     {
         curr = next;
         if (key < curr->key)
-            next = x->left;
+            next = curr->left;
         else
-            next = x->right;
+            next = curr->right;
     }
     node->parent = curr;
     if (curr == nil)
@@ -147,10 +151,10 @@ void rb_tree<Key, Value>::rotate_left(rb_tree<Key, Value>::Node* node)
     }
     else
     {
-        if (node == node->p->left)
-            node->p->left = s;
+        if (node == node->parent->left)
+            node->parent->left = s;
         else
-            node->p->right = s;
+            node->parent->right = s;
     }
 
     s->parent = node->parent;
@@ -164,7 +168,7 @@ template<typename Key, typename Value>
 void rb_tree<Key, Value>::rotate_right(rb_tree<Key, Value>::Node* node)
 {
     rb_tree<Key, Value>::Node* s = node->left;
-    if (node->p == nil)
+    if (node->parent == nil)
     {
         root = s;
     }
@@ -228,7 +232,7 @@ void rb_tree<Key, Value>::insert_fixup(rb_tree<Key, Value>::Node* node)
                     rotate_right(node);
                 }
                 node->parent->color = BLACK;
-                node->parent->parent = RED;
+                node->parent->parent->color = RED;
                 rotate_left(node->parent->parent);
             }
         }
@@ -237,7 +241,141 @@ void rb_tree<Key, Value>::insert_fixup(rb_tree<Key, Value>::Node* node)
     root->color = BLACK;
 }
 
-template<typename Key, Value value>
+template<typename Key, typename Value>
+void rb_tree<Key, Value>::transplant(rb_tree<Key, Value>::Node* u, rb_tree<Key, Value>::Node* v)
+{
+    if (u->parent == nil)
+    {
+        root = v;
+    }
+    else if (u == u->parent->left)
+    {
+        u->parent.left = v;
+    }
+    else
+    {
+        u->parent->right = v;
+    }
+    v->parent = u->parent;
+}
+
+template<typename Key, typename Value>
+void rb_tree<Key, Value>::del_node(rb_tree<Key, Value>::Node* node)
+{
+    rb_tree<Key, Value>::Node* x = nil;
+    rb_tree<Key, Value>::Node* y = nil;
+
+    if (node->left == nil || node->right == nil)
+        y = node;
+    else
+        y = successor(node);
+
+    if (y->left != nil)
+        x = y->left;
+    else
+        x = y->right;
+    x->parent = y->parent;
+    if (y->parent == nil)
+        root = x;
+    else
+    {
+        if (y == y->parent->left)
+            y->parent->left = x;
+        else
+            y->parent->right = x;
+    }
+    if (y != node)
+    {
+        node->key = y->key;
+        node->value = y->value;
+    }
+
+    if (y->color == BLACK)
+    {
+        del_fixup(x);
+    }
+
+    delete y;
+
+}
+
+template<typename Key, typename Value>
+void rb_tree<Key, Value>::del_fixup(rb_tree<Key, Value>::Node* node)
+{
+    while (node != root && node->color == BLACK)
+    {
+        rb_tree<Key, Value>::Node* u = nullptr;
+        if (node == node->parent->left)
+        {
+            u = node->parent->right;
+            if (u->color == RED)
+            {
+                u->color = BLACK;
+                node->parent->color = RED;
+                rotate_left(node->parent);
+                u = node->parent->right;
+            }
+            if (u->left->color == BLACK && u->right->color == BLACK)
+            {
+                u->color = RED;
+                node = node->parent;
+            }
+            else
+            {
+                if (u->right->color == BLACK)
+                {
+                    u->left->color = BLACK;
+                    u->color = RED;
+                    rotate_right(u);
+                    u = u->parent->right;
+                }
+                u->color = node->parent->color;
+                node->parent->color = BLACK;
+                u->right->color = BLACK;
+                rotate_left(node->p);
+                node = root;
+            }
+        }
+        else
+        {
+            u = node->parent->left;
+            if (u->color == RED)
+            {
+                u->color = BLACK;
+                node->parent->color = RED;
+                rotate_right(node->parent);
+                u = u->parent->left;
+            }
+
+            if (u->right->color == BLACK && u->left->color == BLACK)
+            {
+                u->color = RED;
+                node = node->parent;
+            }
+            else
+            {
+                if (u->left->color == RED)
+                {
+                    u->right->color = BLACK;
+                    u->color = RED;
+                    rotate_left(u);
+                    u = node->parent->left;
+                }
+
+                u->color = node->parent->color;
+                node->parent->color = BLACK;
+                u->left->color = BLACK;
+                rotate_right(node->parent);
+                node = root;
+            }
+        }
+    }
+
+    node->color = BLACK;
+}
+
+
+template<typename Key, typename Value>
 void rb_tree<Key, Value>::dump()
 {
     if (root == nil)
@@ -250,9 +388,54 @@ void rb_tree<Key, Value>::dump()
     }
 }
 
-template<typename Key, Value value>
+template<typename Key, typename Value>
 void rb_tree<Key, Value>::dump(rb_tree<Key, Value>::Node* node)
 {
+    if (node->left != nil)
+    {
+        dump(node->left);
+    }
+    if (node != nil)
+    {
+        std::cout << node->key << " ";
+        if (node->color == RED)
+        {
+            std::cout << "RED ";
+        }
+        else
+        {
+            std::cout << "BLACK ";
+        }
+        if (node->parent != nil)
+        {
+            std::cout << node->parent->key << " ";
+        }
+        else
+        {
+            std::cout << "NIL ";
+        }
+        if (node->left != nil)
+        {
+            std::cout << node->left->key << " ";
+        }
+        else
+        {
+            std::cout << "NIL ";
+        }
+        if (node->right != nil)
+        {
+            std::cout << node->right->key << " ";
+        }
+        else
+        {
+            std::cout << "NIL ";
+        }
+    }
+    std::cout << std::endl;
+    if (node->right != nil)
+    {
+        dump(node->right);
+    }
 }
 
 #endif
